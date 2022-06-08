@@ -50,12 +50,16 @@ async function scrapePage(rootUri){
   async function evaluateLinks(){
     const links = await scrapeLinks()
     
+    
     //push unscraped uris to todo array
     for(let i = 0; i < links.length; i++){
-      if(!navigatedUris.includes(links[i])){
-        navigatedUris.push(links[i])
-        toDoUris.push(links[i])
+      if(links[i].includes('http')){
+        if(!navigatedUris.includes(links[i])){
+          navigatedUris.push(links[i])
+          toDoUris.push(links[i])
+        }
       }
+      
     }
     
   }
@@ -104,7 +108,8 @@ async function scrapePage(rootUri){
   }
 
 
-  await recursiveScrapeEmail()
+  await recursiveScrapeBody()
+  //await recursiveScrapeEmail()
   console.log(content)
 
 
