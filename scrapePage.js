@@ -93,7 +93,9 @@ async function scrapePage(rootUri){
   }
 
   const scrapedMails = await scrape()
-  console.log(scrapedMails)
+
+  fs.writeFileSync('scrapedMails.txt', scrapedMails.join())
+
   await browser.close()
 }
 
