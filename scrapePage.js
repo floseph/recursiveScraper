@@ -5,10 +5,6 @@ const fs = require('fs')
 //entry point pass the root URI of the website you want to scrape as parameter
 async function scrapePage(rootUri){
 
-  //big index of which sites have already been scraped
-  const navigatedUris = []
-  //index of which sites to scrape in the current recursion loop
-  const toDoUris = []
   //array scraped data that gets returned at the end
   const content = []
 
@@ -26,9 +22,6 @@ async function scrapePage(rootUri){
   async function goToPage(uri){
     await page.goto(uri)
   }
-
-
-  
 
   //scrapes all 'body' elements on current page and returns an array of them
   async function scrapeBody(){
@@ -57,110 +50,55 @@ async function scrapePage(rootUri){
     return linksOfPage
   }
 
+  //takes screenshot of current page
   async function takeScreenshot(path){
     console.log(path)
     await page.screenshot({path: path})
   }
 
-  function isSameDomain(uri){
-    return uri.includes(rootUri)
+
+  //return true if there are no undesired file externsions present
+  function noOtherFileTypes(string){
+    return !(string.includes('.jpg') || string.includes('.pdf') || string.includes('.png'))
   }
 
+  async function scrape(){
 
-  //scrapes all links on a site and adds them to current toDoUris if they are not in the navigatedUri array
-  async function evaluateLinks(){
-    const links = await scrapeLinks()
-    
-    
-    //push unscraped uris to todo array
-    for(let i = 0; i < links.length; i++){
-      if(links[i].includes('http') && !links[i].includes('pdf') && !links[i].includes('jpg') && !links[i].includes('png') && isSameDomain(links[i])){
-        if(!navigatedUris.includes(links[i])){
-          navigatedUris.push(links[i])
-          toDoUris.push(links[i])
+    const urisToTraverse = []
+    //initialize with rootUri
+    urisToTraverse.push(rootUri)
+
+    for(let i = 0; i < urisToTraverse.length; i++){
+      await goToPage(urisToTraverse[i])
+      console.log(`Traversing URI # ${i+1} of ${urisToTraverse.length}`)
+      console.log(`Scraping >>> ${urisToTraverse[i]}`)
+      const emails  = await scrapeLinks()
+
+      emails.forEach( element => {
+        if(element.includes(rootUri) && !urisToTraverse.includes(element) && noOtherFileTypes(element)){
+          urisToTraverse.push(element)
         }
-      }
+
+        if(element.includes('@') && !content.includes(element)){
+          content.push(element)
+        }
+      })
     }
+
+    const removeMailTo = content.map(element =>{
+      return element.replace('mailto:', '')
+    })
+    return removeMailTo
+
   }
 
-
-  //scrapes all links on the site and scrapes the body of the pages
-  async function recursiveScrapeBody(){
-    
-    await evaluateLinks()
-    
-    // recursion exit condition
-    if(toDoUris.length === 0){
-      return
-    }
-
-    //scrapebody of toDoUris
-    for(let i = 0; i < toDoUris.length; i++){
-      console.log(`Navigating to >>> ${toDoUris[i]}`)
-      await goToPage(toDoUris[i])
-      toDoUris.shift()
-      const body = await scrapeBody()
-      content.push(body)
-    }
-
-    // await goToPage(toDoUris[0])
-    // toDoUris.shift()
-
-    await recursiveScrapeBody()
-
-    return content
-  }
-
-  async function recursiveScrapeEmail(){
-
-    await evaluateLinks()
-    
-    // recursion exit condition
-    if(toDoUris.length === 0){
-      return
-    }
-
-    //scrapebody of toDoUris
-    for(let i = 0; i < toDoUris.length; i++){
-      console.log(`Navigating to >>> ${toDoUris[i]}`)
-      await goToPage(toDoUris[i])
-      const emails = await scrapeEmails()
-
-      //sanitize email array
-      if(emails.length > 0 && emails[0] != null){
-        emails.forEach((element) => {
-          if(!content.includes(element)){
-            content.push(element)
-          }
-        })
-      }
-    }
-
-    console.log(`My todo uri counter: >>> ${toDoUris.length}`)
-    await goToPage(toDoUris[0])
-    toDoUris.shift()
-    
-    await recursiveScrapeEmail()
-
-
-  // sanitazies content
-  const sanitizedContent = content.filter( (element) => {
-    return element.includes('@')
-  })
-
-  return sanitizedContent
-  }
-
-  
-  
-
-  //test functionality
-  console.log(await recursiveScrapeEmail())
-  // console.log(await recursiveScrapeBody())
-
-  
+  const scrapedMails = await scrape()
+  console.log(scrapedMails)
   await browser.close()
 }
 
-// scrapePage('http://127.0.0.1:3000')
+
+
+scrapePage('http://127.0.0.1:3000')
+// scrapePage('https://www.zahnarzt-neufahrn.com/')
 
