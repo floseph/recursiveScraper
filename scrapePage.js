@@ -28,6 +28,8 @@ async function scrapePage(rootUri){
   }
 
 
+  
+
   //scrapes all 'body' elements on current page and returns an array of them
   async function scrapeBody(){
     const bodyOfPage = await page.evaluate(() => {
@@ -40,7 +42,7 @@ async function scrapePage(rootUri){
   //scrapes all elements with an id* = 'email' on current page and returns an array of them
   async function scrapeEmails(){
     const bodyOfPage = await page.evaluate(() => {
-      const anchorTags = document.querySelectorAll('[id*="email"]')
+      const anchorTags = document.querySelectorAll('a')   //('[id*="email"]')
       return Array.from(anchorTags).map( (a) => a.href)
     })
     return bodyOfPage
@@ -60,6 +62,10 @@ async function scrapePage(rootUri){
     await page.screenshot({path: path})
   }
 
+  function isSameDomain(uri){
+    return uri.includes(rootUri)
+  }
+
 
   //scrapes all links on a site and adds them to current toDoUris if they are not in the navigatedUri array
   async function evaluateLinks(){
@@ -68,7 +74,7 @@ async function scrapePage(rootUri){
     
     //push unscraped uris to todo array
     for(let i = 0; i < links.length; i++){
-      if(links[i].includes('http')){
+      if(links[i].includes('http') && !links[i].includes('pdf') && !links[i].includes('jpg') && !links[i].includes('png') && isSameDomain(links[i])){
         if(!navigatedUris.includes(links[i])){
           navigatedUris.push(links[i])
           toDoUris.push(links[i])
@@ -92,12 +98,13 @@ async function scrapePage(rootUri){
     for(let i = 0; i < toDoUris.length; i++){
       console.log(`Navigating to >>> ${toDoUris[i]}`)
       await goToPage(toDoUris[i])
+      toDoUris.shift()
       const body = await scrapeBody()
       content.push(body)
     }
 
-    await goToPage(toDoUris[0])
-    toDoUris.shift()
+    // await goToPage(toDoUris[0])
+    // toDoUris.shift()
 
     await recursiveScrapeBody()
 
@@ -129,17 +136,23 @@ async function scrapePage(rootUri){
       }
     }
 
+    console.log(`My todo uri counter: >>> ${toDoUris.length}`)
     await goToPage(toDoUris[0])
     toDoUris.shift()
     
     await recursiveScrapeEmail()
 
-    return content
+
+  // sanitazies content
+  const sanitizedContent = content.filter( (element) => {
+    return element.includes('@')
+  })
+
+  return sanitizedContent
   }
 
-  async function sanitizeContent(){
-    
-  }
+  
+  
 
   //test functionality
   console.log(await recursiveScrapeEmail())
@@ -149,4 +162,5 @@ async function scrapePage(rootUri){
   await browser.close()
 }
 
-scrapePage('http://127.0.0.1:3000')
+// scrapePage('http://127.0.0.1:3000')
+
