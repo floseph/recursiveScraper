@@ -5,9 +5,7 @@ const fs = require('fs')
 //entry point pass the root URI of the website you want to scrape as parameter
 async function scrapePage(rootUri){
 
-  //array scraped data that gets returned at the end
-  const content = []
-
+ 
   const browser = await puppeteer.launch()
   const page = await browser.newPage()
 
@@ -62,25 +60,48 @@ async function scrapePage(rootUri){
     return !(string.includes('.jpg') || string.includes('.pdf') || string.includes('.png'))
   }
 
+  function getRandomInt(max) {
+    return Math.floor(Math.random() * max);
+  }
+  
+
+  async function spoof(){
+    const userAgentsRaw = fs.readFileSync('userAgents.txt','utf-8')
+    const userAgents = userAgentsRaw.split(/\r?\n/)
+    const randomInt = getRandomInt(userAgents.length)
+    const randomUserAgent = userAgents[randomInt]
+    
+    await page.setUserAgent(randomUserAgent)
+    
+  }
+
   async function scrape(){
+
+     //array scraped data that gets returned at the end
+    const content = []
 
     const urisToTraverse = []
     //initialize with rootUri
     urisToTraverse.push(rootUri)
 
     for(let i = 0; i < urisToTraverse.length; i++){
+      //await spoof()
       await goToPage(urisToTraverse[i])
       console.log(`Traversing URI # ${i+1} of ${urisToTraverse.length}`)
       console.log(`Scraping >>> ${urisToTraverse[i]}`)
       const emails  = await scrapeLinks()
 
       emails.forEach( element => {
+        //links
         if(element.includes(rootUri) && !urisToTraverse.includes(element) && noOtherFileTypes(element)){
           urisToTraverse.push(element)
         }
 
-        if(element.includes('@') && !content.includes(element)){
+        //emails
+        if(element.includes('@') && !content.includes(element) && !element.includes('?')){
           content.push(element)
+          
+          fs.writeFileSync('scrapedMails.txt', content.join('\n'))
         }
       })
     }
@@ -95,12 +116,9 @@ async function scrapePage(rootUri){
   const scrapedMails = await scrape()
 
   fs.writeFileSync('scrapedMails.txt', scrapedMails.join('\n'))
+  console.log('All emails scraped and saved to "scrapedMails.txt" ')
 
   await browser.close()
 }
 
-
-
-scrapePage('http://127.0.0.1:3000')
-// scrapePage('https://www.zahnarzt-neufahrn.com/')
 
